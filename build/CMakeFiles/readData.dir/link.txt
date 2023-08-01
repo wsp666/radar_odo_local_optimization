@@ -1,1 +1,0 @@
-/usr/bin/c++  -O3 -std=c++17 -g  -rdynamic CMakeFiles/readData.dir/src/readData.cc.o  -o readData  /usr/local/lib/libfmt.a 

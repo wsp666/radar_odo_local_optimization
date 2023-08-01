@@ -1,1 +1,0 @@
-/usr/bin/c++  -O3 -std=c++17 -g  -rdynamic CMakeFiles/g2o_solver_local_optimization.dir/src/g2o_solver_local_optimization.cc.o  -o g2o_solver_local_optimization  /usr/local/lib/libfmt.a -lg2o_core -lg2o_stuff 
