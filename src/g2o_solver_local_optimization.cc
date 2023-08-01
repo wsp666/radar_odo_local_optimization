@@ -73,6 +73,7 @@ class EdgePose2Landmark : public g2o::BaseUnaryEdge<4, Eigen::Vector4d, VertexSE
 
     virtual bool write(ostream &out) const { return true; }
 
+    //残差维度2维？4维？ TODO
     virtual void computeError() override
     {
         SE3d v1 = (static_cast<VertexSE3LieAlgebraPose *>(_vertices[0]))->estimate();
@@ -228,7 +229,8 @@ int main(int argc, char **argv)
     // }
 
     // 设定g2o
-    typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, 4>> BlockSolverType;
+    //整个优化问题的残差维度2维？4维？还是李代数的6维？将残差维度设置为动态情况下（第二维设置为-1）疑似无效 TODO
+    typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, -1>> BlockSolverType;
     typedef g2o::LinearSolverEigen<BlockSolverType::PoseMatrixType> LinearSolverType;
     auto solver = new g2o::OptimizationAlgorithmLevenberg(
         std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
