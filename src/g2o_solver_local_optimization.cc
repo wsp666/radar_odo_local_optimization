@@ -27,14 +27,15 @@ using Sophus::SO3d;
 typedef Matrix<double, 6, 6> Matrix6d;
 
 // 给定误差求J_R^{-1}的近似
-Matrix6d JRInv(const SE3d &e) {
+Matrix6d JRInv(const SE3d &e)
+{
     Matrix6d J;
     J.block(0, 0, 3, 3) = SO3d::hat(e.so3().log());
     J.block(0, 3, 3, 3) = SO3d::hat(e.translation());
     J.block(3, 0, 3, 3) = Matrix3d::Zero(3, 3);
     J.block(3, 3, 3, 3) = SO3d::hat(e.so3().log());
     // J = J * 0.5 + Matrix6d::Identity();
-    J = Matrix6d::Identity();    // try Identity if you want
+    J = Matrix6d::Identity(); // try Identity if you want
     return J;
 }
 
@@ -45,35 +46,36 @@ typedef Matrix<double, 8, 4> Martrix8_4;
 // 自身位姿顶点
 class VertexSE3LieAlgebraPose : public g2o::BaseVertex<6, SE3d>
 {
-    public:
+public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    virtual bool read(istream &is) override {return true;}
+    virtual bool read(istream &is) override { return true; }
 
-    virtual bool write(ostream &os) const override {return true;}
+    virtual bool write(ostream &os) const override { return true; }
 
-    virtual void setToOriginImpl() override 
+    virtual void setToOriginImpl() override
     {
         _estimate = SE3d();
     }
 
     // 左乘更新
-    virtual void oplusImpl(const double *update) override {
+    virtual void oplusImpl(const double *update) override
+    {
         Vector6d upd;
         upd << update[0], update[1], update[2], update[3], update[4], update[5];
         _estimate = SE3d::exp(upd) * _estimate;
     }
 };
 
-class EdgePose2Landmark: public g2o::BaseUnaryEdge<4, Eigen::Vector4d, VertexSE3LieAlgebraPose>
+class EdgePose2Landmark : public g2o::BaseUnaryEdge<4, Eigen::Vector4d, VertexSE3LieAlgebraPose>
 {
-    virtual bool read(istream &in) {return true;}
+    virtual bool read(istream &in) { return true; }
 
-    virtual bool write(ostream &out) const {return true;}
+    virtual bool write(ostream &out) const { return true; }
 
-    virtual void computeError() override 
+    virtual void computeError() override
     {
-        SE3d v1 = (static_cast<VertexSE3LieAlgebraPose *> (_vertices[0]))->estimate();
+        SE3d v1 = (static_cast<VertexSE3LieAlgebraPose *>(_vertices[0]))->estimate();
         Eigen::Vector4d p_k_1, p_k;
         p_k_1 << _measurement[0], _measurement[1], double(0.0), double(1.0);
         p_k << _measurement[2], _measurement[3], double(0.0), double(1.0);
@@ -81,47 +83,57 @@ class EdgePose2Landmark: public g2o::BaseUnaryEdge<4, Eigen::Vector4d, VertexSE3
     }
 
     // use numeric derivatives
-    
 };
 
-
-class EdgePose2Motion: public g2o::BaseBinaryEdge<6, Eigen::Matrix<double, 8, 4>, VertexSE3LieAlgebraPose, VertexSE3LieAlgebraPose>
+class EdgePose2Motion : public g2o::BaseBinaryEdge<6, Eigen::Matrix<double, 8, 4>,
+                                                   VertexSE3LieAlgebraPose, VertexSE3LieAlgebraPose>
 {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    virtual bool read(istream &is) override {return true;;}
+    virtual bool read(istream &is) override
+    {
+        return true;
+        ;
+    }
 
-    virtual bool write(ostream &os) const override {return true;;}
+    virtual bool write(ostream &os) const override
+    {
+        return true;
+        ;
+    }
 
-    virtual void computeError() override 
+    virtual void computeError() override
     {
         // D_k_2_to_k_1
-        SE3d v1 = (static_cast<VertexSE3LieAlgebraPose *> (_vertices[0]))->estimate();
+        SE3d v1 = (static_cast<VertexSE3LieAlgebraPose *>(_vertices[0]))->estimate();
         // D_k_1_to_k
-        SE3d v2 = (static_cast<VertexSE3LieAlgebraPose *> (_vertices[1]))->estimate();
+        SE3d v2 = (static_cast<VertexSE3LieAlgebraPose *>(_vertices[1]))->estimate();
 
-        Vector6d T_k_2_to_k_1,T_k_1_to_k;
-        T_k_2_to_k_1 <<_measurement.block<4, 4>(0, 0);
-        T_k_1_to_k <<_measurement.block<4, 4>(4, 0);
-        
+        Vector6d T_k_2_to_k_1, T_k_1_to_k;
+        T_k_2_to_k_1 << _measurement.block<4, 4>(0, 0);
+        T_k_1_to_k << _measurement.block<4, 4>(4, 0);
 
         Eigen::Matrix3d T_k_2_to_k_1_R = T_k_2_to_k_1.block<3, 3>(0, 0);
         Eigen::Vector3d T_k_2_to_k_1_t = T_k_2_to_k_1.block<3, 1>(0, 3);
         Eigen::Quaterniond rotation_T_k_2_to_k_1(T_k_2_to_k_1_R);
         rotation_T_k_2_to_k_1.norm();
-        Sophus::SE3d SE3_T_k_2_to_k_1(rotation_T_k_2_to_k_1,T_k_2_to_k_1_t);
+        Sophus::SE3d SE3_T_k_2_to_k_1(rotation_T_k_2_to_k_1, T_k_2_to_k_1_t);
 
         Eigen::Matrix3d T_k_1_to_k_R = T_k_1_to_k.block<3, 3>(0, 0);
         Eigen::Vector3d T_k_1_to_k_t = T_k_1_to_k.block<3, 1>(0, 3);
         Eigen::Quaterniond rotation_T_k_1_to_k(T_k_1_to_k_R);
         rotation_T_k_1_to_k.norm();
-        Sophus::SE3d SE3_T_k_1_to_k(rotation_T_k_1_to_k,T_k_1_to_k_t);
+        Sophus::SE3d SE3_T_k_1_to_k(rotation_T_k_1_to_k, T_k_1_to_k_t);
 
-        std::cout << "SE3_T_k_2_to_k_1:\n" << SE3_T_k_2_to_k_1.matrix() <<std::endl;
-        std::cout << "SE3_T_k_1_to_k:\n" << SE3_T_k_1_to_k.matrix() <<std::endl;
-        std::cout <<"v1:\n"<< v1.matrix() << std::endl;
-        std::cout <<"v2:\n"<< v2.matrix() << std::endl;
+        std::cout << "SE3_T_k_2_to_k_1:\n"
+                  << SE3_T_k_2_to_k_1.matrix() << std::endl;
+        std::cout << "SE3_T_k_1_to_k:\n"
+                  << SE3_T_k_1_to_k.matrix() << std::endl;
+        std::cout << "v1:\n"
+                  << v1.matrix() << std::endl;
+        std::cout << "v2:\n"
+                  << v2.matrix() << std::endl;
 
         _error = (v2 * SE3_T_k_2_to_k_1 * v1.inverse() * SE3_T_k_1_to_k.inverse()).log();
     }
@@ -135,19 +147,20 @@ public:
     //     _jacobianOplusXi = -J * v2.inverse().Adj();
     //     _jacobianOplusXj = J * v2.inverse().Adj();
     // }
-
 };
 
-void readData(const std::string &filename_p ,const std::string &filename_T, const std::string &filename_D,\
-                std::vector<std::vector<double>>& p_data, std::vector<std::vector<double>>& T_data, \
-                std::vector<std::vector<double>>& D_data, int& landmark_size);
+void readData(const std::string &filename_p, const std::string &filename_T, const std::string &filename_D,
+              std::vector<std::vector<double>> &p_data, std::vector<std::vector<double>> &T_data,
+              std::vector<std::vector<double>> &D_data, int &landmark_size);
 
-void readDataFromFile(const std::string& filename, std::vector<std::vector<double>>& data);
+void readDataFromFile(const std::string &filename, std::vector<std::vector<double>> &data);
 
-void copyToEigenMatrix(const std::vector<std::vector<double>>& data, Eigen::Matrix<double, 8, 4>& matrix);
+void copyToEigenMatrix(const std::vector<std::vector<double>> &data, Eigen::Matrix<double, 8, 4> &matrix);
 
-int main(int argc, char **argv) {
-    if (argc != 4) {
+int main(int argc, char **argv)
+{
+    if (argc != 4)
+    {
         std::cout << "usage: ceres_slover_local_optimization sim_data_p.txt sim_data_T.txt sim_data_D.txt" << std::endl;
         return 1;
     }
@@ -161,11 +174,13 @@ int main(int argc, char **argv) {
     // std::cout << "\n mat_T:\n" << mat_T << std::endl;
 
     std::vector<std::vector<double>> est_D_d_k_2tok_1, est_D_d_k_1tok;
-    Eigen::Matrix4d D_k_2to_k_1,D_k_1to_k;
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
+    Eigen::Matrix4d D_k_2to_k_1, D_k_1to_k;
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
             D_k_2to_k_1(i, j) = D_data[i][j];
-            D_k_1to_k(i, j) = D_data[i+4][j];
+            D_k_1to_k(i, j) = D_data[i + 4][j];
         }
     }
     Eigen::Matrix3d D_k_2to_k_1_R = D_k_2to_k_1.block<3, 3>(0, 0);
@@ -180,18 +195,18 @@ int main(int argc, char **argv) {
 
     Eigen::Quaterniond rotation_D_k_2tok_1(D_k_2to_k_1_R);
     rotation_D_k_2tok_1.norm();
-    Sophus::SE3d SE3_D_k_2tok_1(rotation_D_k_2tok_1,D_k_2to_k_1_t);
+    Sophus::SE3d SE3_D_k_2tok_1(rotation_D_k_2tok_1, D_k_2to_k_1_t);
 
     Eigen::Quaterniond rotation_D_k_1tok(D_k_1to_k_R);
     rotation_D_k_1tok.norm();
-    Sophus::SE3d SE3_D_k_1tok(rotation_D_k_1tok,D_k_1to_k_t);
+    Sophus::SE3d SE3_D_k_1tok(rotation_D_k_1tok, D_k_1to_k_t);
 
-    std::vector<Eigen::Vector4d> p_data_k_2_k_1,p_data_k_1_k;
-    for (const auto& row : p_data)
+    std::vector<Eigen::Vector4d> p_data_k_2_k_1, p_data_k_1_k;
+    for (const auto &row : p_data)
     {
-        Eigen::Vector4d tmp_vector_1,tmp_vector_2;
-        tmp_vector_1 << row[0],row[1],row[2],row[3];
-        tmp_vector_2 << row[2],row[3],row[4],row[5];
+        Eigen::Vector4d tmp_vector_1, tmp_vector_2;
+        tmp_vector_1 << row[0], row[1], row[2], row[3];
+        tmp_vector_2 << row[2], row[3], row[4], row[5];
         p_data_k_2_k_1.push_back(tmp_vector_1);
         p_data_k_1_k.push_back(tmp_vector_2);
     }
@@ -218,31 +233,31 @@ int main(int argc, char **argv) {
     auto solver = new g2o::OptimizationAlgorithmLevenberg(
         std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
     // auto solver = new g2o::OptimizationAlgorithmDogleg(
-    //     std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));        
+    //     std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
     // auto solver = new g2o::OptimizationAlgorithmGaussNewton(
     //     std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
-    g2o::SparseOptimizer optimizer;     // 图模型
-    optimizer.setAlgorithm(solver);   // 设置求解器
+    g2o::SparseOptimizer optimizer; // 图模型
+    optimizer.setAlgorithm(solver); // 设置求解器
 
-    optimizer.setVerbose(true);       // 打开调试输出
+    optimizer.setVerbose(true); // 打开调试输出
 
     int vertexCnt = 0, edgeCnt = 0; // 顶点和边的数量
 
-    //add Vertex
+    // add Vertex
     VertexSE3LieAlgebraPose *v1 = new VertexSE3LieAlgebraPose();
-    v1 -> setId(vertexCnt++);
-    v1 -> setEstimate(SE3_D_k_2tok_1);
+    v1->setId(vertexCnt++);
+    v1->setEstimate(SE3_D_k_2tok_1);
     optimizer.addVertex(v1);
     VertexSE3LieAlgebraPose *v2 = new VertexSE3LieAlgebraPose();
-    v2 -> setId(vertexCnt++);
-    v2 -> setEstimate(SE3_D_k_1tok);
+    v2->setId(vertexCnt++);
+    v2->setEstimate(SE3_D_k_1tok);
     optimizer.addVertex(v2);
 
-    //add Edge
-    for (std::vector<Eigen::Vector4d>::iterator it = p_data_k_2_k_1.begin(); it != p_data_k_2_k_1.end(); ++it) 
+    // add Edge
+    for (std::vector<Eigen::Vector4d>::iterator it = p_data_k_2_k_1.begin(); it != p_data_k_2_k_1.end(); ++it)
     {
         EdgePose2Landmark *e = new EdgePose2Landmark();
-        e -> setId( edgeCnt++ );
+        e->setId(edgeCnt++);
         // e->setVertex(0, optimizer.vertices()[1]);
         e->setVertex(0, v1);
         // std::cout << "*it:" << *it << std::endl<< std::endl<< std::endl;
@@ -250,10 +265,10 @@ int main(int argc, char **argv) {
         e->setRobustKernel(new g2o::RobustKernelHuber());
         optimizer.addEdge(e);
     }
-    for (std::vector<Eigen::Vector4d>::iterator it = p_data_k_1_k.begin(); it != p_data_k_1_k.end(); ++it) 
+    for (std::vector<Eigen::Vector4d>::iterator it = p_data_k_1_k.begin(); it != p_data_k_1_k.end(); ++it)
     {
         EdgePose2Landmark *e = new EdgePose2Landmark();
-        e -> setId( edgeCnt++ );
+        e->setId(edgeCnt++);
         // e->setVertex(0, optimizer.vertices()[1]);
         // std::cout << "*it:" << *it << std::endl;
         e->setVertex(0, v2);
@@ -281,9 +296,9 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void readData(const std::string &filename_p ,const std::string &filename_T, const std::string &filename_D,\
-                std::vector<std::vector<double>>& p_data, std::vector<std::vector<double>>& T_data, \
-                std::vector<std::vector<double>>& D_data, int& landmark_size)
+void readData(const std::string &filename_p, const std::string &filename_T, const std::string &filename_D,
+              std::vector<std::vector<double>> &p_data, std::vector<std::vector<double>> &T_data,
+              std::vector<std::vector<double>> &D_data, int &landmark_size)
 {
     readDataFromFile(filename_p, p_data);
     std::cout << "Load landmark coords success! " << std::endl;
@@ -297,7 +312,7 @@ void readData(const std::string &filename_p ,const std::string &filename_T, cons
     std::cout << "landmark size: " << landmark_size << std::endl;
 }
 
-void readDataFromFile(const std::string& filename, std::vector<std::vector<double>>& data)
+void readDataFromFile(const std::string &filename, std::vector<std::vector<double>> &data)
 {
     std::ifstream file(filename);
     if (!file)
@@ -322,15 +337,19 @@ void readDataFromFile(const std::string& filename, std::vector<std::vector<doubl
     file.close();
 }
 
-void copyToEigenMatrix(const std::vector<std::vector<double>>& data, Eigen::Matrix<double, 8, 4>& matrix) {
+void copyToEigenMatrix(const std::vector<std::vector<double>> &data, Eigen::Matrix<double, 8, 4> &matrix)
+{
     // 检查数据尺寸是否匹配
-    if (data.size() != 8 || data[0].size() != 4) {
+    if (data.size() != 8 || data[0].size() != 4)
+    {
         std::cout << "数据尺寸不匹配！" << std::endl;
         return;
     }
 
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 4; ++j) {
+    for (int i = 0; i < 8; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
             matrix(i, j) = data[i][j];
         }
     }
