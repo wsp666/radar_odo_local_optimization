@@ -1,0 +1,89 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Session: g2o_solver_local_optimization",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": ["data/sim_data_p.txt",
+               "data/sim_data_T.txt", 
+               "data/sim_data_D.txt"],
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "cwd": "/home/meta_iot/radar_odo_local_optimization",
+      "program": "/home/meta_iot/radar_odo_local_optimization/build/g2o_solver_local_optimization",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "miDebuggerArgs": "-q -ex quit; wait() { fg >/dev/null; }; /usr/bin/gdb -q --interpreter=mi",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "Debug Session: ceres_solver_local_optimization",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": ["data/sim_data_p.txt",
+               "data/sim_data_T.txt", 
+               "data/sim_data_D.txt"],
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "cwd": "/home/meta_iot/radar_odo_local_optimization",
+      "program": "/home/meta_iot/radar_odo_local_optimization/build/ceres_slover_local_optimization",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "miDebuggerArgs": "-q -ex quit; wait() { fg >/dev/null; }; /usr/bin/gdb -q --interpreter=mi",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "Debug Session: ceres_with_eigen",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": [],
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "cwd": "/home/meta_iot/radar_odo_local_optimization",
+      "program": "/home/meta_iot/radar_odo_local_optimization/build/ceres_with_eigen",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "miDebuggerArgs": "-q -ex quit; wait() { fg >/dev/null; }; /usr/bin/gdb -q --interpreter=mi",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": [],
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "cwd": "/home/meta_iot/radar_odo_local_optimization",
+      "program": "/home/meta_iot/radar_odo_local_optimization/build/Debug/outDebug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "miDebuggerArgs": "-q -ex quit; wait() { fg >/dev/null; }; /usr/bin/gdb -q --interpreter=mi",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}

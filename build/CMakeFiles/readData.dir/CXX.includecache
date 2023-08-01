@@ -1,0 +1,26 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/meta_iot/radar_odo_local_optimization/src/readData.cc
+iostream
+-
+fstream
+-
+vector
+-
+sstream
+-
+array
+-
+eigen3/Eigen/Core
+-
+eigen3/Eigen/Dense
+-
+sophus/se3.hpp
+-
+

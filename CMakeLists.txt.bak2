@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.12)
+project(ceres_solver_local_optimization)
+
+set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_CXX_FLAGS "-O3 -std=c++11")
+
+# Add Ceres Solver package
+find_package(Ceres REQUIRED)
+include_directories(${CERES_INCLUDE_DIRS})
+
+# Add your source files
+set(SOURCES
+    src/ceres_slover_local_optimization.cc
+    src/utils.cc
+)
+
+# Add your header files
+set(HEADERS
+    include/utils.h
+    include/error.h
+)
+
+# Create an executable target
+add_executable(ceres_solver_local_optimization ${SOURCES} ${HEADERS})
+
+# Link against Ceres Solver library
+target_link_libraries(ceres_solver_local_optimization ${CERES_LIBRARIES})

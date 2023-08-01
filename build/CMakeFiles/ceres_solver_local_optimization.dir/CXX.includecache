@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/meta_iot/radar_odo_local_optimization/include/utils.h
+iostream
+-
+string.h
+-
+vector
+-
+
+/home/meta_iot/radar_odo_local_optimization/src/utils.cc
+cstdio
+-
+fstream
+-
+iostream
+-
+vector
+-
+eigen3/Eigen/Core
+-
+eigen3/Eigen/Dense
+-
+../include/utils.h
+/home/meta_iot/radar_odo_local_optimization/include/utils.h
+

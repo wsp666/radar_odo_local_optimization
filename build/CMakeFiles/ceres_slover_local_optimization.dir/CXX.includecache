@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/error.h
+ceres/ceres.h
+../include/ceres/ceres.h
+
+../include/utils.h
+iostream
+-
+string.h
+-
+vector
+-
+
+/home/meta_iot/radar_odo_local_optimization/src/ceres_slover_local_optimization.cc
+iostream
+-
+ceres/ceres.h
+-
+utils.h
+/home/meta_iot/radar_odo_local_optimization/src/utils.h
+error.h
+/home/meta_iot/radar_odo_local_optimization/src/error.h
+
