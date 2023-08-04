@@ -72,16 +72,24 @@ class EdgePose2Landmark : public g2o::BaseUnaryEdge<4, Eigen::Vector4d, VertexSE
     virtual bool read(istream &in) { return true; }
 
     virtual bool write(ostream &out) const { return true; }
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    //初始化输入参数为，三维坐标source和相机参数K
+    EdgePose2Landmark(const Eigen::Vector4d &pos) : _source_pos3d(pos) {}
+
 
     //残差维度2维？4维？ TODO
     virtual void computeError() override
     {
         SE3d v1 = (static_cast<VertexSE3LieAlgebraPose *>(_vertices[0]))->estimate();
-        Eigen::Vector4d p_k_1, p_k;
-        p_k_1 << _measurement[0], _measurement[1], double(0.0), double(1.0);
-        p_k << _measurement[2], _measurement[3], double(0.0), double(1.0);
-        _error = v1 * p_k_1 - p_k;
+        // Eigen::Vector4d p_k_1, p_k;
+        // p_k_1 << _measurement[0], _measurement[1], double(0.0), double(1.0);
+        // p_k << _measurement[2], _measurement[3], double(0.0), double(1.0);
+        _error = v1 * _source_pos3d - _measurement;
     }
+
+    private:
+    Eigen::Vector4d _source_pos3d;
 
     // use numeric derivatives
 };
@@ -165,7 +173,12 @@ int main(int argc, char **argv)
         std::cout << "usage: ceres_slover_local_optimization sim_data_p.txt sim_data_T.txt sim_data_D.txt" << std::endl;
         return 1;
     }
-
+    /**
+     * @brief 测量数据
+     * p_data: landmark
+     * T_data: 动态转移变换
+     * D_data: 初始里程计值
+     */
     std::vector<std::vector<double>> p_data, T_data, D_data;
     int landmark_size;
     readData(argv[1], argv[2], argv[3], p_data, T_data, D_data, landmark_size);
@@ -194,22 +207,24 @@ int main(int argc, char **argv)
     // std::cout << "D_k_1to_k_R:\n" << D_k_1to_k_R <<std::endl;
     // std::cout << "D_k_1to_k_t:\n" << D_k_1to_k_t <<std::endl;
 
-    Eigen::Quaterniond rotation_D_k_2tok_1(D_k_2to_k_1_R);
-    rotation_D_k_2tok_1.norm();
-    Sophus::SE3d SE3_D_k_2tok_1(rotation_D_k_2tok_1, D_k_2to_k_1_t);
+    Eigen::Quaterniond rotation_D_k_2tok_1(D_k_2to_k_1_R);          // 选择矩阵转为四元数
+    rotation_D_k_2tok_1.norm();                                     // 归一化四元数
+    Sophus::SE3d SE3_D_k_2tok_1(rotation_D_k_2tok_1, D_k_2to_k_1_t); // 得到李代数
 
     Eigen::Quaterniond rotation_D_k_1tok(D_k_1to_k_R);
     rotation_D_k_1tok.norm();
     Sophus::SE3d SE3_D_k_1tok(rotation_D_k_1tok, D_k_1to_k_t);
 
-    std::vector<Eigen::Vector4d> p_data_k_2_k_1, p_data_k_1_k;
+    std::vector<Eigen::Vector4d> p_data_k_2, p_data_k_1, p_data_k;      // 观测点
     for (const auto &row : p_data)
     {
-        Eigen::Vector4d tmp_vector_1, tmp_vector_2;
-        tmp_vector_1 << row[0], row[1], row[2], row[3];
-        tmp_vector_2 << row[2], row[3], row[4], row[5];
-        p_data_k_2_k_1.push_back(tmp_vector_1);
-        p_data_k_1_k.push_back(tmp_vector_2);
+        Eigen::Vector4d tmp_vector_1, tmp_vector_2, tmp_vector_3;
+        tmp_vector_1 << row[0], row[1], 0, 1;             // TODO     为什么不是0,1  2,3  4,5
+        tmp_vector_2 << row[2], row[3], 0, 1;
+        tmp_vector_3 << row[4], row[5], 0, 1;
+        p_data_k_2.push_back(tmp_vector_1);
+        p_data_k_1.push_back(tmp_vector_2);
+        p_data_k.push_back(tmp_vector_3);
     }
     // std::cout << "p_data_k_2_k_1:" << std::endl;
     // for (std::vector<Eigen::Vector4d>::iterator it = p_data_k_2_k_1.begin(); it != p_data_k_2_k_1.end(); ++it) {
@@ -256,26 +271,38 @@ int main(int argc, char **argv)
     optimizer.addVertex(v2);
 
     // add Edge
-    for (std::vector<Eigen::Vector4d>::iterator it = p_data_k_2_k_1.begin(); it != p_data_k_2_k_1.end(); ++it)
+    for (int i=0; i < p_data_k_2.size(); i++)
     {
-        EdgePose2Landmark *e = new EdgePose2Landmark();
+        Eigen::Vector4d point_k_2 = p_data_k_2[i];
+        Eigen::Vector4d point_k_1 = p_data_k_1[i];
+
+        EdgePose2Landmark *e = new EdgePose2Landmark(point_k_2);                 // k-2的landmark作为source
         e->setId(edgeCnt++);
         // e->setVertex(0, optimizer.vertices()[1]);
         e->setVertex(0, v1);
         // std::cout << "*it:" << *it << std::endl<< std::endl<< std::endl;
-        e->setMeasurement(*it);
-        e->setRobustKernel(new g2o::RobustKernelHuber());
+        e->setMeasurement(point_k_1);
+        // e->setRobustKernel(new g2o::RobustKernelHuber());
+        Eigen::Matrix4d infor_matrix;
+        infor_matrix.diagonal() << 0.0001, 0.0001, 0.0001, 1;
+        e->setInformation(infor_matrix);
         optimizer.addEdge(e);
     }
-    for (std::vector<Eigen::Vector4d>::iterator it = p_data_k_1_k.begin(); it != p_data_k_1_k.end(); ++it)
+    for (int i=0; i < p_data_k_1.size(); i++)
     {
-        EdgePose2Landmark *e = new EdgePose2Landmark();
+        Eigen::Vector4d point_k_1 = p_data_k_1[i];
+        Eigen::Vector4d point_k = p_data_k[i];
+
+        EdgePose2Landmark *e = new EdgePose2Landmark(point_k_1);
         e->setId(edgeCnt++);
         // e->setVertex(0, optimizer.vertices()[1]);
         // std::cout << "*it:" << *it << std::endl;
         e->setVertex(0, v2);
-        e->setMeasurement(*it);
-        e->setRobustKernel(new g2o::RobustKernelHuber());
+        e->setMeasurement(point_k);
+        // e->setRobustKernel(new g2o::RobustKernelHuber());
+        Eigen::Matrix4d infor_matrix;
+        infor_matrix.diagonal() << 0.0001, 0.0001, 0.0001, 1;
+        e->setInformation(infor_matrix);
         optimizer.addEdge(e);
     }
     // EdgePose2Motion *e = new EdgePose2Motion();
