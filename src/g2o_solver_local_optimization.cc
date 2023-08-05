@@ -67,7 +67,7 @@ public:
     }
 };
 
-class EdgePose2Landmark : public g2o::BaseUnaryEdge<4, Eigen::Vector4d, VertexSE3LieAlgebraPose>
+class EdgePose2Landmark : public g2o::BaseUnaryEdge<2, Eigen::Vector2d, VertexSE3LieAlgebraPose>   // 2为_error的维度
 {
     virtual bool read(istream &in) { return true; }
 
@@ -75,7 +75,7 @@ class EdgePose2Landmark : public g2o::BaseUnaryEdge<4, Eigen::Vector4d, VertexSE
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
     //初始化输入参数为，三维坐标source和相机参数K
-    EdgePose2Landmark(const Eigen::Vector4d &pos) : _source_pos3d(pos) {}
+    EdgePose2Landmark(const Eigen::Vector2d &pos) : _source_pos3d(pos) {}
 
 
     //残差维度2维？4维？ TODO
@@ -85,11 +85,14 @@ public:
         // Eigen::Vector4d p_k_1, p_k;
         // p_k_1 << _measurement[0], _measurement[1], double(0.0), double(1.0);
         // p_k << _measurement[2], _measurement[3], double(0.0), double(1.0);
-        _error = v1 * _source_pos3d - _measurement;
+        Eigen::Vector3d source_coin;
+        source_coin << _source_pos3d[0], _source_pos3d[1], double(0.0);
+        Eigen::Vector3d tsource_coin = v1 * source_coin;
+        _error =  tsource_coin.head<2>() - _measurement;
     }
 
     private:
-    Eigen::Vector4d _source_pos3d;
+    Eigen::Vector2d _source_pos3d;
 
     // use numeric derivatives
 };
@@ -215,13 +218,13 @@ int main(int argc, char **argv)
     rotation_D_k_1tok.norm();
     Sophus::SE3d SE3_D_k_1tok(rotation_D_k_1tok, D_k_1to_k_t);
 
-    std::vector<Eigen::Vector4d> p_data_k_2, p_data_k_1, p_data_k;      // 观测点
+    std::vector<Eigen::Vector2d> p_data_k_2, p_data_k_1, p_data_k;      // 观测点
     for (const auto &row : p_data)
     {
-        Eigen::Vector4d tmp_vector_1, tmp_vector_2, tmp_vector_3;
-        tmp_vector_1 << row[0], row[1], 0, 1;             // TODO     为什么不是0,1  2,3  4,5
-        tmp_vector_2 << row[2], row[3], 0, 1;
-        tmp_vector_3 << row[4], row[5], 0, 1;
+        Eigen::Vector2d tmp_vector_1, tmp_vector_2, tmp_vector_3;
+        tmp_vector_1 << row[0], row[1];             // TODO     为什么不是0,1  2,3  4,5
+        tmp_vector_2 << row[2], row[3];
+        tmp_vector_3 << row[4], row[5];
         p_data_k_2.push_back(tmp_vector_1);
         p_data_k_1.push_back(tmp_vector_2);
         p_data_k.push_back(tmp_vector_3);
@@ -245,7 +248,7 @@ int main(int argc, char **argv)
 
     // 设定g2o
     //整个优化问题的残差维度2维？4维？还是李代数的6维？将残差维度设置为动态情况下（第二维设置为-1）疑似无效 TODO
-    typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, -1>> BlockSolverType;
+    typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, 2>> BlockSolverType;
     typedef g2o::LinearSolverEigen<BlockSolverType::PoseMatrixType> LinearSolverType;
     auto solver = new g2o::OptimizationAlgorithmLevenberg(
         std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
@@ -273,8 +276,8 @@ int main(int argc, char **argv)
     // add Edge
     for (int i=0; i < p_data_k_2.size(); i++)
     {
-        Eigen::Vector4d point_k_2 = p_data_k_2[i];
-        Eigen::Vector4d point_k_1 = p_data_k_1[i];
+        Eigen::Vector2d point_k_2 = p_data_k_2[i];
+        Eigen::Vector2d point_k_1 = p_data_k_1[i];
 
         EdgePose2Landmark *e = new EdgePose2Landmark(point_k_2);                 // k-2的landmark作为source
         e->setId(edgeCnt++);
@@ -282,16 +285,16 @@ int main(int argc, char **argv)
         e->setVertex(0, v1);
         // std::cout << "*it:" << *it << std::endl<< std::endl<< std::endl;
         e->setMeasurement(point_k_1);
-        // e->setRobustKernel(new g2o::RobustKernelHuber());
-        Eigen::Matrix4d infor_matrix;
-        infor_matrix.diagonal() << 0.0001, 0.0001, 0.0001, 1;
-        e->setInformation(infor_matrix);
+        e->setRobustKernel(new g2o::RobustKernelHuber());
+        // Eigen::Matrix4d infor_matrix;
+        // infor_matrix.diagonal() << 0.0001, 0.0001, 0.0001, 1;
+        e->setInformation(Eigen::Matrix2d::Identity());
         optimizer.addEdge(e);
     }
     for (int i=0; i < p_data_k_1.size(); i++)
     {
-        Eigen::Vector4d point_k_1 = p_data_k_1[i];
-        Eigen::Vector4d point_k = p_data_k[i];
+        Eigen::Vector2d point_k_1 = p_data_k_1[i];
+        Eigen::Vector2d point_k = p_data_k[i];
 
         EdgePose2Landmark *e = new EdgePose2Landmark(point_k_1);
         e->setId(edgeCnt++);
@@ -299,10 +302,10 @@ int main(int argc, char **argv)
         // std::cout << "*it:" << *it << std::endl;
         e->setVertex(0, v2);
         e->setMeasurement(point_k);
-        // e->setRobustKernel(new g2o::RobustKernelHuber());
-        Eigen::Matrix4d infor_matrix;
-        infor_matrix.diagonal() << 0.0001, 0.0001, 0.0001, 1;
-        e->setInformation(infor_matrix);
+        e->setRobustKernel(new g2o::RobustKernelHuber());
+        // Eigen::Matrix4d infor_matrix;
+        // infor_matrix.diagonal() << 0.0001, 0.0001, 0.0001, 1;
+        e->setInformation(Eigen::Matrix2d::Identity());
         optimizer.addEdge(e);
     }
     // EdgePose2Motion *e = new EdgePose2Motion();
