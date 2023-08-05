@@ -97,11 +97,13 @@ public:
     // use numeric derivatives
 };
 
-class EdgePose2Motion : public g2o::BaseBinaryEdge<6, Eigen::Matrix<double, 8, 4>,
+class EdgePose2Motion : public g2o::BaseBinaryEdge<6, SE3d,
                                                    VertexSE3LieAlgebraPose, VertexSE3LieAlgebraPose>
 {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    //初始化输入参数为，将T_Dk-2_k-1通过构造函数传入类中
+    EdgePose2Motion(const SE3d &T_Dk_2_k_1) : _TD_1(T_Dk_2_k_1) {}
 
     virtual bool read(istream &is) override
     {
@@ -122,32 +124,32 @@ public:
         // D_k_1_to_k
         SE3d v2 = (static_cast<VertexSE3LieAlgebraPose *>(_vertices[1]))->estimate();
 
-        Vector6d T_k_2_to_k_1, T_k_1_to_k;
-        T_k_2_to_k_1 << _measurement.block<4, 4>(0, 0);
-        T_k_1_to_k << _measurement.block<4, 4>(4, 0);
+        // Vector6d T_k_2_to_k_1, T_k_1_to_k;
+        // T_k_2_to_k_1 << _measurement.block<4, 4>(0, 0);
+        // T_k_1_to_k << _measurement.block<4, 4>(4, 0);
 
-        Eigen::Matrix3d T_k_2_to_k_1_R = T_k_2_to_k_1.block<3, 3>(0, 0);
-        Eigen::Vector3d T_k_2_to_k_1_t = T_k_2_to_k_1.block<3, 1>(0, 3);
-        Eigen::Quaterniond rotation_T_k_2_to_k_1(T_k_2_to_k_1_R);
-        rotation_T_k_2_to_k_1.norm();
-        Sophus::SE3d SE3_T_k_2_to_k_1(rotation_T_k_2_to_k_1, T_k_2_to_k_1_t);
+        // Eigen::Matrix3d T_k_2_to_k_1_R = T_k_2_to_k_1.block<3, 3>(0, 0);
+        // Eigen::Vector3d T_k_2_to_k_1_t = T_k_2_to_k_1.block<3, 1>(0, 3);
+        // Eigen::Quaterniond rotation_T_k_2_to_k_1(T_k_2_to_k_1_R);
+        // rotation_T_k_2_to_k_1.norm();
+        // Sophus::SE3d SE3_T_k_2_to_k_1(rotation_T_k_2_to_k_1, T_k_2_to_k_1_t);
 
-        Eigen::Matrix3d T_k_1_to_k_R = T_k_1_to_k.block<3, 3>(0, 0);
-        Eigen::Vector3d T_k_1_to_k_t = T_k_1_to_k.block<3, 1>(0, 3);
-        Eigen::Quaterniond rotation_T_k_1_to_k(T_k_1_to_k_R);
-        rotation_T_k_1_to_k.norm();
-        Sophus::SE3d SE3_T_k_1_to_k(rotation_T_k_1_to_k, T_k_1_to_k_t);
+        // Eigen::Matrix3d T_k_1_to_k_R = T_k_1_to_k.block<3, 3>(0, 0);
+        // Eigen::Vector3d T_k_1_to_k_t = T_k_1_to_k.block<3, 1>(0, 3);
+        // Eigen::Quaterniond rotation_T_k_1_to_k(T_k_1_to_k_R);
+        // rotation_T_k_1_to_k.norm();
+        // Sophus::SE3d SE3_T_k_1_to_k(rotation_T_k_1_to_k, T_k_1_to_k_t);
 
-        std::cout << "SE3_T_k_2_to_k_1:\n"
-                  << SE3_T_k_2_to_k_1.matrix() << std::endl;
-        std::cout << "SE3_T_k_1_to_k:\n"
-                  << SE3_T_k_1_to_k.matrix() << std::endl;
+        std::cout << "T_measurement for k-2 frame to k-1 frame:\n"
+                  << _TD_1.matrix() << std::endl;
+        std::cout << "T_measurement for k-1 frame to k frame:\n"
+                  << _measurement.matrix() << std::endl;
         std::cout << "v1:\n"
                   << v1.matrix() << std::endl;
         std::cout << "v2:\n"
                   << v2.matrix() << std::endl;
 
-        _error = (v2 * SE3_T_k_2_to_k_1 * v1.inverse() * SE3_T_k_1_to_k.inverse()).log();
+        _error = (v2 * _TD_1 * v1.inverse() * _measurement.inverse()).log();
     }
 
     // 雅可比计算；省略不写则g2o将自动求导
@@ -159,6 +161,8 @@ public:
     //     _jacobianOplusXi = -J * v2.inverse().Adj();
     //     _jacobianOplusXj = J * v2.inverse().Adj();
     // }
+    private:
+    SE3d _TD_1;
 };
 
 void readData(const std::string &filename_p, const std::string &filename_T, const std::string &filename_D,
@@ -248,7 +252,7 @@ int main(int argc, char **argv)
 
     // 设定g2o
     //整个优化问题的残差维度2维？4维？还是李代数的6维？将残差维度设置为动态情况下（第二维设置为-1）疑似无效 TODO
-    typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, 2>> BlockSolverType;
+    typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, -1>> BlockSolverType;
     typedef g2o::LinearSolverEigen<BlockSolverType::PoseMatrixType> LinearSolverType;
     auto solver = new g2o::OptimizationAlgorithmLevenberg(
         std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
@@ -308,13 +312,28 @@ int main(int argc, char **argv)
         e->setInformation(Eigen::Matrix2d::Identity());
         optimizer.addEdge(e);
     }
-    // EdgePose2Motion *e = new EdgePose2Motion();
-    // e -> setId( edgeCnt++ );
-    // e->setVertex(0, optimizer.vertices()[0]);
-    // e->setVertex(0, optimizer.vertices()[1]);
-    // e->setMeasurement(mat_T);
-    // optimizer.addEdge(e);
-    // std::cout << "Add the dynamic motion constrian!" << std::endl;
+
+    // 通过mat_T给出第一个观测,通过构造函数
+    Eigen::Matrix3d T_k_2_to_k_1_R = mat_T.block<3, 3>(0, 0);
+    Eigen::Vector3d T_k_2_to_k_1_t = mat_T.block<3, 1>(0, 3);
+    Eigen::Quaterniond rotation_T_k_2_to_k_1(T_k_2_to_k_1_R);
+    rotation_T_k_2_to_k_1.norm();
+    Sophus::SE3d SE3_T_k_2_to_k_1(rotation_T_k_2_to_k_1, T_k_2_to_k_1_t);
+
+    // 通过mat_T给出第二个实际观测值
+    Eigen::Matrix3d T_k_1_to_k_R = mat_T.block<3, 3>(4, 0);
+    Eigen::Vector3d T_k_1_to_k_t = mat_T.block<3, 1>(4, 3);
+    Eigen::Quaterniond rotation_T_k_1_to_k(T_k_1_to_k_R);
+    rotation_T_k_1_to_k.norm();
+    Sophus::SE3d SE3_T_k_1_to_k(rotation_T_k_1_to_k, T_k_1_to_k_t);
+
+    EdgePose2Motion *e = new EdgePose2Motion(SE3_T_k_2_to_k_1);
+    e -> setId( edgeCnt++ );
+    e->setVertex(0, optimizer.vertices()[0]);
+    e->setVertex(1, optimizer.vertices()[1]);
+    e->setMeasurement(SE3_T_k_1_to_k);
+    optimizer.addEdge(e);
+    std::cout << "Add the dynamic motion constrian!" << std::endl;
 
     cout << "Add total " << vertexCnt << " vertices, " << edgeCnt << " edges to the graph" << endl;
     cout << "optimizing ..." << endl;
