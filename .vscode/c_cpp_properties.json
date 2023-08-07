@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/usr/include/eigen3",
-                "${workspaceFolder}/include"
+                "${workspaceFolder}/include",
+                "/usr/include/python3.8"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

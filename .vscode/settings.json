@@ -73,7 +73,8 @@
     "csetjmp": "cpp",
     "hash_map": "cpp",
     "hash_set": "cpp",
-    "slist": "cpp"
+    "slist": "cpp",
+    "forward_list": "cpp"
   },
   "C_Cpp_Runner.msvcBatchPath": "",
   "C_Cpp_Runner.cCompilerPath": "gcc",
